@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Koń w ruchu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&amp;family=Barlow+Condensed:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Układ: tor pomiarowy (scena 3D) po lewej, kolumna parametrów po prawej; na telefonie scena nad panelem. */
+  --paper: #e6ebe7;
+  --panel: #f7f9f6;
+  --ink: #16201b;
+  --muted: #5a6760;
+  --line: #ccd4ce;
+  --accent: #1c7a4e;
+  --accent-ink: #ffffff;
+  --leg-lh: #1d4e9f;
+  --leg-lf: #4f9be6;
+  --leg-rh: #b8460b;
+  --leg-rf: #ee9d2b;
+  --scene-sky: #dde5e1;
+  --scene-ground: #cbc2b0;
+  --scene-ground-line: #a59c8a;
+  --scene-wall: #efeee8;
+  --scene-wall-ink: #26332d;
+  --scene-dark: 0;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1412;
+    --panel: #151c19;
+    --ink: #e6ece8;
+    --muted: #93a29a;
+    --line: #2a352f;
+    --accent: #46bf88;
+    --accent-ink: #06150d;
+    --leg-lh: #5d8fe6;
+    --leg-lf: #a3cdf7;
+    --leg-rh: #e2703a;
+    --leg-rf: #f7c468;
+    --scene-sky: #0b110f;
+    --scene-ground: #57503f;
+    --scene-ground-line: #7a715c;
+    --scene-wall: #18211d;
+    --scene-wall-ink: #c6d2cb;
+    --scene-dark: 1;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1412;
+  --panel: #151c19;
+  --ink: #e6ece8;
+  --muted: #93a29a;
+  --line: #2a352f;
+  --accent: #46bf88;
+  --accent-ink: #06150d;
+  --leg-lh: #5d8fe6;
+  --leg-lf: #a3cdf7;
+  --leg-rh: #e2703a;
+  --leg-rf: #f7c468;
+  --scene-sky: #0b110f;
+  --scene-ground: #57503f;
+  --scene-ground-line: #7a715c;
+  --scene-wall: #18211d;
+  --scene-wall-ink: #c6d2cb;
+  --scene-dark: 1;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.35;
+  overflow: hidden;
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#app { display: grid; grid-template-columns: minmax(0, 1fr) 332px; height: 100%; }
+
+/* ---------- scena ---------- */
+#stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--scene-sky); }
+#scene { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#scene:active { cursor: grabbing; }
+
+.dock { position: absolute; left: 20px; bottom: 18px; width: min(560px, calc(100% - 40px)); display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.dock > * { pointer-events: auto; }
+.hud { display: flex; align-items: flex-end; gap: 18px; pointer-events: none; }
+.hud .gait { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: clamp(60px, 8vw, 96px); line-height: 0.8; letter-spacing: -0.01em; text-transform: uppercase; }
+.hud .speed { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hud .speed small { font-size: 16px; color: var(--muted); font-weight: 500; }
+.hud .speed .dot { color: var(--muted); padding: 0 6px; }
+
+.transport { position: absolute; top: 18px; right: 20px; display: flex; gap: 8px; }
+.icon-btn { height: 36px; min-width: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: 0.04em; }
+.icon-btn:hover { border-color: var(--ink); }
+
+.plot { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
+.plot header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.plot h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; }
+.plot header span { color: var(--muted); font-size: 12px; }
+#gaitplot { display: block; width: 100%; height: 92px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 12px; margin: 0; }
+.stats div { display: flex; flex-direction: column; min-width: 0; }
+.stats dt { color: var(--muted); font-size: 11.5px; }
+.stats dd { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 21px; line-height: 1.05; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stats dd small { font-size: 13px; font-weight: 500; color: var(--muted); }
+
+.nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
+
+/* ---------- panel ---------- */
+#panel { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+.intro { padding: 18px 18px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.intro h1 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; text-wrap: balance; }
+.intro p { margin: 0; color: var(--muted); max-width: 65ch; }
+#panel details { border-bottom: 1px solid var(--line); }
+#panel summary { list-style: none; cursor: pointer; padding: 12px 18px 10px; display: flex; justify-content: space-between; align-items: baseline; font-family: var(--font-display); font-weight: 600; font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase; }
+#panel summary::-webkit-details-marker { display: none; }
+#panel summary::after { content: "+"; color: var(--muted); font-weight: 500; }
+#panel details[open] > summary::after { content: "–"; }
+.group { display: flex; flex-direction: column; gap: 12px; padding: 2px 18px 16px; }
+.row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 10px; }
+.row label, .row .label { color: var(--ink); }
+.row output { font-family: var(--font-display); font-weight: 600; font-size: 16px; font-variant-numeric: tabular-nums; }
+.row input[type="range"] { grid-column: 1 / -1; width: 100%; margin: 2px 0 0; accent-color: var(--accent); height: 18px; }
+.row .hint { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.seg { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
+.seg button { flex: 1 1 auto; min-width: 46px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; background: transparent; cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: 0.03em; position: relative; }
+.seg button:hover { border-color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.seg button.now::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: 2px; height: 2px; background: var(--accent); border-radius: 1px; }
+.seg button[aria-pressed="true"].now::after { background: var(--accent-ink); }
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.bands { grid-column: 1 / -1; display: flex; height: 16px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
+.bands span { border-left: 1px solid var(--line); padding-left: 4px; overflow: hidden; white-space: nowrap; min-width: 0; }
+.bands span:first-child { border-left: 0; padding-left: 0; }
+.bands span.on { color: var(--accent); font-weight: 600; }
+.legkey { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+.plain-btn { padding: 7px 10px; border: 1px solid var(--line); border-radius: 4px; background: transparent; cursor: pointer; }
+.plain-btn:hover { border-color: var(--ink); }
+.note { margin: 0; padding: 12px 18px 20px; color: var(--muted); font-size: 12.5px; }
+.note kbd { font-family: var(--font-display); font-weight: 600; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; color: var(--ink); }
+
+@media (max-width: 820px) {
+  #app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 58%) minmax(0, 42%); }
+  #panel { border-left: 0; border-top: 1px solid var(--line); }
+  .dock { left: 16px; bottom: 10px; width: calc(100% - 32px); gap: 6px; }
+  .hud { gap: 12px; }
+  .hud .gait { font-size: 44px; }
+  .hud .speed { font-size: 19px; }
+  .transport { top: 12px; right: 16px; }
+  .plot { padding: 8px 10px; gap: 6px; }
+  #gaitplot { height: 60px; }
+  .plot header, .stats { display: none; }
+}
+@media (max-height: 620px) and (min-width: 821px) {
+  .stats, .plot header span { display: none; }
+  .hud .gait { font-size: 56px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="scene" aria-label="Trójwymiarowa symulacja chodu konia. Przeciągnij, aby obrócić kamerę."></canvas>
+
+    <div class="transport">
+      <button type="button" class="icon-btn" id="pause" aria-pressed="false">Pauza</button>
+    </div>
+
+    <div class="dock">
+      <div class="hud">
+        <p class="gait" id="gait-name" aria-live="polite">Kłus</p>
+        <p class="speed"><span id="v-ms">3,6</span> <small>m/s</small><span class="dot">·</span><span id="v-kmh">13</span> <small>km/h</small></p>
+      </div>
+      <section class="plot" aria-label="Diagram stąpania">
+      <header>
+        <h2>Diagram stąpania</h2>
+        <span>trzy ostatnie cykle; pasek = kopyto na ziemi</span>
+      </header>
+      <canvas id="gaitplot"></canvas>
+      <dl class="stats">
+        <div><dt>Częstotliwość</dt><dd><span id="s-f">1,36</span> <small>Hz</small></dd></div>
+        <div><dt>Długość cyklu</dt><dd><span id="s-l">2,58</span> <small>m</small></dd></div>
+        <div><dt>Podparcie nogi</dt><dd><span id="s-b">44</span> <small>%</small></dd></div>
+        <div><dt>Faza lotu</dt><dd><span id="s-s">9</span> <small>%</small></dd></div>
+      </dl>
+      </section>
+    </div>
+  </main>
+
+  <aside id="panel" aria-label="Parametry symulacji">
+    <div class="intro">
+      <h1>Koń w ruchu</h1>
+      <p>Stęp, kłus, galop i cwał z jednego modelu. Zmień prędkość, a koń sam zmieni chód.</p>
+    </div>
+  </aside>
+</div>
+
+<script src="js/three.min.js"></script>
+<script src="js/horse-model.js"></script>
+<script src="js/horse-app.js"></script>
+</body>
+</html>
